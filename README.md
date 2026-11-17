@@ -31,3 +31,7 @@ Put your Wi-Fi networks in a `.env` file at the repo root before flashing
 (`WIFI_SSID`, `WIFI_PASS`, and `_2` to `_4` for more). The file is git-ignored.
 Without it, the board opens a `glyph-setup-XXXX` access point where you can
 pick a network.
+
+## License
+
+MIT. See `LICENSE`.
