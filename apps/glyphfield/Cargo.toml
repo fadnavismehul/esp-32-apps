@@ -1,0 +1,7 @@
+[package]
+name = "glyphfield"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+app-sdk = { path = "../../crates/app-sdk" }

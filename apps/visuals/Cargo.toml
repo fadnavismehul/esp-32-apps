@@ -1,0 +1,10 @@
+[package]
+name = "visuals"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+app-sdk = { path = "../../crates/app-sdk" }
+glyphfield = { path = "../glyphfield" }
+blobs = { path = "../blobs" }
+flow = { path = "../flow" }

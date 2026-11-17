@@ -1,0 +1,6 @@
+[package]
+name = "netproto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

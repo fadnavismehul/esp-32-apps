@@ -1,0 +1,15 @@
+[package]
+name = "pikachu"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+app-sdk = { path = "../../crates/app-sdk" }
+
+[build-dependencies]
+png = "0.17"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+[dev-dependencies]
+png = "0.17"
+toml = { version = "0.8", default-features = false, features = ["parse"] }

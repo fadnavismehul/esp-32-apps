@@ -1,0 +1,6 @@
+[package]
+name = "app-sdk"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

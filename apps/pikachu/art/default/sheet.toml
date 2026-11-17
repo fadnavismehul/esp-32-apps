@@ -1,0 +1,30 @@
+# Stand-in Pikachu art until real sprites go in art/custom/.
+# Drawn by make_sheet.py. Frames are 40x40 and face right.
+frame = [40, 40]
+faces = "right"
+
+[idle]
+row = 0
+frames = 2
+ms = 600
+
+[blink]
+row = 1
+frames = 1
+
+[walk]
+row = 2
+frames = 4
+
+[happy]
+row = 3
+frames = 2
+
+[dizzy]
+row = 4
+frames = 2
+
+[sleep]
+row = 5
+frames = 2
+ms = 1200

@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glyph setup</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#0b0b0f;color:#eee;margin:0;padding:24px;max-width:420px}
+h1{font-size:22px;margin:0 0 8px}p{color:#aaa;line-height:1.4}
+label{display:block;margin:16px 0 6px;color:#ccc}
+input{width:100%;box-sizing:border-box;padding:12px;font-size:16px;border-radius:8px;border:1px solid #333;background:#16161d;color:#fff}
+button{margin-top:20px;width:100%;padding:14px;font-size:16px;border:0;border-radius:8px;background:#ff2e88;color:#fff}
+.ok{color:#40ffa0}.err{color:#ff7070}
+</style></head><body>
+<h1>Glyph setup</h1>
+<p>Pick the Wi-Fi network this device should join. It remembers up to four.</p>
+<!--MSG-->
+<!--FORM-->
+<form method="post" action="/">
+<label for="ssid">Network name (SSID)</label>
+<input id="ssid" name="ssid" autocomplete="off" autocapitalize="none" required>
+<label for="pass">Password</label>
+<input id="pass" name="pass" type="password" autocomplete="off">
+<button type="submit">Save and connect</button>
+</form>
+<!-- -->
+</body></html>

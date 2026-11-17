@@ -1,0 +1,16 @@
+[package]
+name = "sim"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+app-sdk = { path = "../crates/app-sdk" }
+glyphfield = { path = "../apps/glyphfield" }
+sand = { path = "../apps/sand" }
+clock = { path = "../apps/clock" }
+blobs = { path = "../apps/blobs" }
+flow = { path = "../apps/flow" }
+visuals = { path = "../apps/visuals" }
+pikachu = { path = "../apps/pikachu" }
+city = { path = "../apps/city" }
+png = "0.17"
