@@ -442,9 +442,9 @@ impl Options {
             "sim" => {
                 if !matches!(
                     args.front().map(String::as_str),
-                    Some("visuals" | "glyphfield" | "blobs" | "flow" | "sand" | "clock" | "pikachu")
+                    Some("visuals" | "glyphfield" | "blobs" | "flow" | "sand" | "clock" | "pikachu" | "city" | "pokeball")
                 ) {
-                    return Err("sim requires visuals, glyphfield, blobs, flow, sand, clock or pikachu".into());
+                    return Err("sim requires visuals, glyphfield, blobs, flow, sand, clock, pikachu, city or pokeball".into());
                 }
                 Command::Sim(args.drain(..).collect())
             }
@@ -666,6 +666,6 @@ pub const USAGE: &str = "Usage: espctl [--host HOST[:PORT]] [--json] <command>
   flash --usb [--port P]        Build and flash over USB
   flash --ota                   Build and flash over Wi-Fi
   pair [--port P]               Save token and IP from USB monitor
-  sim <visuals|glyphfield|blobs|flow|sand|clock|pikachu> [args...]  Run simulator (arguments passed through)
+  sim <visuals|glyphfield|blobs|flow|sand|clock|pikachu|city|pokeball> [args...]  Run simulator (arguments passed through)
   help                          Show this help
 Global flags go before `sim`; subsequent flags belong to the simulator.";

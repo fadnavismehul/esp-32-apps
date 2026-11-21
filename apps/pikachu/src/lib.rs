@@ -37,6 +37,7 @@ mod tests {
                 time_ms: self.t,
                 local_time_s: self.clock.map(|c| c + self.t / 1000),
                 key,
+                ..Input::default()
             };
             self.p.update(&input, 33, &mut out);
             out

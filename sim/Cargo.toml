@@ -13,4 +13,5 @@ flow = { path = "../apps/flow" }
 visuals = { path = "../apps/visuals" }
 pikachu = { path = "../apps/pikachu" }
 city = { path = "../apps/city" }
+pokeball = { path = "../apps/pokeball" }
 png = "0.17"

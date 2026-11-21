@@ -139,6 +139,8 @@ impl Voice {
             Sound::Tick { .. } => frames(14),
             Sound::Click => frames(22),
             Sound::Chime => CHIME.iter().map(|n| n.at + n.rise + n.fall).max().unwrap_or(0),
+            Sound::PokeballOpen => frames(540),
+            Sound::PokeballClose => frames(250),
         };
         let lead = frames(LEAD_MS);
         let total = (lead * 2 + body).next_multiple_of(CHUNK as u32 / 4);
@@ -190,8 +192,116 @@ impl Voice {
                 }
                 sum
             }
+            Sound::PokeballOpen => self.pokeball_open(t),
+            Sound::PokeballClose => self.pokeball_close(t),
         };
         s.clamp(-32767, 32767)
+    }
+
+    /// Pokéball opening: mechanical latch pop -> fast rising energy sweep ->
+    /// bright harmonic sparkle chime.
+    fn pokeball_open(&mut self, t: u32) -> i32 {
+        let mut sum = 0i32;
+
+        // 1. 0..32 ms: crisp metallic latch pop + short release hiss.
+        let pop_end = frames(32);
+        if t < pop_end {
+            let env = ((pop_end - t) * 256 / pop_end) as i32;
+            let env = env * env / 256;
+            let hz = 2100 - (t * 1100 / pop_end);
+            self.phase[0] = self.phase[0].wrapping_add(step32(hz));
+            let pop = SIN256[(self.phase[0] >> 24) as usize] as i32 * 13000 / 32767;
+            self.lfsr = (self.lfsr >> 1) ^ (0u16.wrapping_sub(self.lfsr & 1) & 0xB400);
+            let hiss = (self.lfsr as i16 as i32) * 5500 / 32768;
+            sum += (pop + hiss) * env / 256;
+        }
+
+        // 2. 22..245 ms: rising electronic energy whoosh (380 Hz -> 1560 Hz)
+        //    with bright octave overtone and airy shimmer.
+        let sw_start = frames(22);
+        let sw_len = frames(223);
+        if t >= sw_start && t < sw_start + sw_len {
+            let u = t - sw_start;
+            let rise = frames(26);
+            let env = if u < rise {
+                (u * 256 / rise) as i32
+            } else {
+                let left = ((sw_len - u) * 256 / (sw_len - rise)) as i32;
+                left * left / 256
+            };
+            // Quadratic pitch curve for a punchy upward energy burst.
+            let p = (u * 256 / sw_len) as u32;
+            let hz = 380 + (p * p * 1180) / (256 * 256);
+            self.phase[0] = self.phase[0].wrapping_add(step32(hz));
+            self.phase[1] = self.phase[1].wrapping_add(step32(hz * 2));
+            let fund = SIN256[(self.phase[0] >> 24) as usize] as i32 * 11000 / 32767;
+            let harm = SIN256[(self.phase[1] >> 24) as usize] as i32 * 5000 / 32767;
+            self.lfsr = (self.lfsr >> 1) ^ (0u16.wrapping_sub(self.lfsr & 1) & 0xB400);
+            let air = (self.lfsr as i16 as i32) * 2200 / 32768;
+            sum += (fund + harm + air) * env / 256;
+        }
+
+        // 3. 145..540 ms: bright twin harmonic sparkle chimes (G6 + C7).
+        let chimes = [
+            (frames(145), frames(14), frames(350), step32(1568), 6400i32),
+            (frames(195), frames(14), frames(330), step32(2093), 5600i32),
+        ];
+        for (idx, &(at, rise, fall, st, amp)) in chimes.iter().enumerate() {
+            if t >= at && t < at + rise + fall {
+                let u = t - at;
+                let env = if u < rise {
+                    let r = (u * 256 / rise) as i32;
+                    r * r / 256
+                } else {
+                    let left = ((rise + fall - u) * 256 / fall) as i32;
+                    left * left / 256 * left / 256
+                };
+                let p = &mut self.phase[2 + idx];
+                *p = p.wrapping_add(st);
+                sum += SIN256[(*p >> 24) as usize] as i32 * amp / 32767 * env / 256;
+            }
+        }
+        sum
+    }
+
+    /// Pokéball closing: downward energy retract followed by a crisp latch snap.
+    fn pokeball_close(&mut self, t: u32) -> i32 {
+        let mut sum = 0i32;
+
+        // 1. 0..170 ms: falling energy retract (1120 Hz -> 340 Hz).
+        let sw_len = frames(170);
+        if t < sw_len {
+            let rise = frames(15);
+            let env = if t < rise {
+                (t * 256 / rise) as i32
+            } else {
+                let left = ((sw_len - t) * 256 / (sw_len - rise)) as i32;
+                left * left / 256
+            };
+            let hz = 1120 - (t * 780 / sw_len);
+            self.phase[0] = self.phase[0].wrapping_add(step32(hz));
+            self.phase[1] = self.phase[1].wrapping_add(step32(hz * 2));
+            let fund = SIN256[(self.phase[0] >> 24) as usize] as i32 * 8500 / 32767;
+            let harm = SIN256[(self.phase[1] >> 24) as usize] as i32 * 3000 / 32767;
+            sum += (fund + harm) * env / 256;
+        }
+
+        // 2. 165..235 ms: crisp double-body mechanical latch lock snap.
+        let snap_at = frames(165);
+        let snap_len = frames(70);
+        if t >= snap_at && t < snap_at + snap_len {
+            let u = t - snap_at;
+            let env = ((snap_len - u) * 256 / snap_len) as i32;
+            let env = env * env / 256;
+            self.phase[2] = self.phase[2].wrapping_add(step32(1680));
+            self.phase[3] = self.phase[3].wrapping_add(step32(620));
+            let click = SIN256[(self.phase[2] >> 24) as usize] as i32 * 10000 / 32767;
+            let thud = SIN256[(self.phase[3] >> 24) as usize] as i32 * 9000 / 32767;
+            self.lfsr = (self.lfsr >> 1) ^ (0u16.wrapping_sub(self.lfsr & 1) & 0xB400);
+            let hiss = (self.lfsr as i16 as i32) * 4000 / 32768;
+            sum += (click + thud + hiss) * env / 256;
+        }
+        sum
     }
 
     /// A short decaying tone with optional noise, for ticks and clicks.

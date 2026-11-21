@@ -24,7 +24,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Options, String> {
     let mut args = args.into_iter();
     let app = args.next().unwrap_or_default();
     if !APPS.contains(&app.as_str()) {
-        return Err("usage: sim <visuals|glyphfield|blobs|flow|sand|clock|pikachu|city> [--tilt DEG] [--tilt-dir DEG] [--touch X,Y] [--tap-at FRAME]... [--key-at FRAME]... [--frames N] [--fps 30] [--time HH:MM[:SS]] [--out DIR]".into());
+        return Err("usage: sim <visuals|glyphfield|blobs|flow|sand|clock|pikachu|city|pokeball> [--tilt DEG] [--tilt-dir DEG] [--touch X,Y] [--tap-at FRAME]... [--key-at FRAME]... [--frames N] [--fps 30] [--time HH:MM[:SS]] [--out DIR]".into());
     }
     let mut options = Options {
         app,
@@ -85,7 +85,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Options, String> {
     Ok(options)
 }
 
-const APPS: [&str; 8] = ["visuals", "glyphfield", "blobs", "flow", "sand", "clock", "pikachu", "city"];
+const APPS: [&str; 9] = ["visuals", "glyphfield", "blobs", "flow", "sand", "clock", "pikachu", "city", "pokeball"];
 /// 2026-10-26 00:00 as local Unix seconds.
 const SIM_DAY: u32 = 1_792_972_800;
 
@@ -123,6 +123,7 @@ fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
         "clock" => Box::new(clock::Clock::new()),
         "pikachu" => Box::new(pikachu::Pikachu::new()),
         "city" => Box::new(city::City::new()),
+        "pokeball" => Box::new(pokeball::Pokeball::new()),
         _ => Box::new(glyphfield::GlyphField::new()),
     };
     let dt = 1000 / options.fps;
@@ -136,6 +137,7 @@ fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
         app.update(
             &Input {
                 tilt: tilt(options.tilt, options.direction),
+                gyro: app_sdk::Gyro::default(),
                 touch: Touch {
                     down: options.touch.is_some(),
                     x,

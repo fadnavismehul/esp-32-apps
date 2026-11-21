@@ -254,7 +254,8 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
-        let (mut x_mg, mut y_mg, mut z_mg) = imu::read_mg(&mut i2c).unwrap_or((0, 0, 1000));
+        let ((mut x_mg, mut y_mg, mut z_mg), (gx_dps10, gy_dps10, gz_dps10)) =
+            imu::read_imu(&mut i2c).unwrap_or(((0, 0, 1000), (0, 0, 0)));
         let mut point = touch::read(&mut i2c);
         let ovr = state::with(|s| {
             let o = s.ovr;
@@ -308,6 +309,7 @@ async fn main(spawner: Spawner) -> ! {
 
         let input = Input {
             tilt: Tilt { x_mg, y_mg, z_mg },
+            gyro: app_sdk::Gyro { x_dps10: gx_dps10, y_dps10: gy_dps10, z_dps10: gz_dps10 },
             touch: Touch { down: point.is_some(), x: last_touch.0, y: last_touch.1, tapped },
             time_ms: (now - boot).as_millis() as u32,
             local_time_s: state::local_time_s(),

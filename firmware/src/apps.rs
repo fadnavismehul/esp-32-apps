@@ -8,6 +8,7 @@ use app_sdk::{App, Input, Output};
 use city::City;
 use clock::Clock;
 use pikachu::Pikachu;
+use pokeball::Pokeball;
 use sand::Sand;
 use visuals::Visuals;
 
@@ -17,10 +18,11 @@ pub enum ActiveApp {
     Clock(Clock),
     Pikachu(Pikachu),
     City(City),
+    Pokeball(Pokeball),
 }
 
 /// Also the order the middle button cycles through.
-pub const NAMES: [&str; 5] = ["visuals", "sand", "clock", "pikachu", "city"];
+pub const NAMES: [&str; 6] = ["visuals", "sand", "clock", "pikachu", "city", "pokeball"];
 
 impl ActiveApp {
     pub const DEFAULT: Self = ActiveApp::Visuals(Visuals::new());
@@ -33,6 +35,7 @@ impl ActiveApp {
             "clock" => ActiveApp::Clock(Clock::new()),
             "pikachu" => ActiveApp::Pikachu(Pikachu::new()),
             "city" => ActiveApp::City(City::new()),
+            "pokeball" => ActiveApp::Pokeball(Pokeball::new()),
             _ => ActiveApp::Visuals(Visuals::starting(name)?),
         })
     }
@@ -57,6 +60,7 @@ impl ActiveApp {
             ActiveApp::Clock(_) => "clock",
             ActiveApp::Pikachu(_) => "pikachu",
             ActiveApp::City(_) => "city",
+            ActiveApp::Pokeball(_) => "pokeball",
         }
     }
 
@@ -81,6 +85,7 @@ impl App for ActiveApp {
             ActiveApp::Clock(a) => a.update(input, dt_ms, out),
             ActiveApp::Pikachu(a) => a.update(input, dt_ms, out),
             ActiveApp::City(a) => a.update(input, dt_ms, out),
+            ActiveApp::Pokeball(a) => a.update(input, dt_ms, out),
         }
     }
 
@@ -91,6 +96,7 @@ impl App for ActiveApp {
             ActiveApp::Clock(a) => a.render(rows, buf),
             ActiveApp::Pikachu(a) => a.render(rows, buf),
             ActiveApp::City(a) => a.render(rows, buf),
+            ActiveApp::Pokeball(a) => a.render(rows, buf),
         }
     }
 }
