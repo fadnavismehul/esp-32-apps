@@ -31,8 +31,9 @@ const OPEN_FULL: i32 = 1024;
 const SPARK_COUNT: usize = 20;
 /// Drag distance (px) before a touch becomes a 360° rotation instead of a tap.
 const DRAG_THRESHOLD_SQ: i32 = 10 * 10;
-/// Inner hub radius (px) where drag falls back from polar angle to horizontal spin.
-const HUB_RADIUS_SQ: i32 = 22 * 22;
+/// Touch drag on the Pokéball (`r <= R`) revolves in 3D pitch & yaw (~112 u16 turns/px,
+/// so dragging across the ball's diameter revolves ~180° like a real physical trackball).
+const TOUCH_REVOLVE_SCALE: i32 = 112;
 /// Gyro deadband in deci-dps (2.2°/s) to eliminate static drift when still.
 const GYRO_DEADBAND: i32 = 22;
 
@@ -493,6 +494,15 @@ impl Spark {
     };
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DragMode {
+    None,
+    /// Started on the Pokéball (`r <= R`): 3D horizontal (yaw) & vertical (pitch) revolution.
+    Revolve,
+    /// Started outside the Pokéball (`r > R`): 360° in-plane roll around center.
+    Roll,
+}
+
 /// Interactive true-3D pitch/yaw/roll Pokéball.
 pub struct Pokeball {
     target_open: bool,
@@ -510,9 +520,10 @@ pub struct Pokeball {
     bias_y: i32,
     bias_z: i32,
     cal_frames: u8,
-    /// Touch gesture tracking (drag rotates 360°, tap opens/closes).
+    /// Touch gesture tracking (drag on ball revolves 3D pitch/yaw; drag on outer
+    /// ring rolls 360° in-plane; tap opens/closes).
     prev_down: bool,
-    dragging: bool,
+    drag_mode: DragMode,
     drag_start: (i16, i16),
     prev_touch: (i16, i16),
     /// Center button flash timer (ms).
@@ -546,7 +557,7 @@ impl Pokeball {
             bias_z: 0,
             cal_frames: 0,
             prev_down: false,
-            dragging: false,
+            drag_mode: DragMode::None,
             drag_start: (0, 0),
             prev_touch: (0, 0),
             flash_ms: 0,
@@ -631,27 +642,32 @@ impl Pokeball {
         if from == to {
             return;
         }
-        let cx = W / 2 + self.tilt_x / 16;
-        let cy = H / 2 + self.tilt_y / 16;
-        let dx0 = from.0 - cx;
-        let dy0 = from.1 - cy;
-        let dx1 = to.0 - cx;
-        let dy1 = to.1 - cy;
-        let r0_sq = dx0 * dx0 + dy0 * dy0;
-        let r1_sq = dx1 * dx1 + dy1 * dy1;
-        if r0_sq >= HUB_RADIUS_SQ && r1_sq >= HUB_RADIUS_SQ {
-            let a0 = atan2_u16(dy0, dx0);
-            let a1 = atan2_u16(dy1, dx1);
-            let delta = a1.wrapping_sub(a0);
-            self.rot.roll_screen(delta);
-        } else {
-            // Dragging right across the center revolves smoothly in 3D yaw & pitch.
-            let yaw = ((to.0 - from.0) * 140).clamp(-4096, 4096) as i16 as u16;
-            let pitch = ((to.1 - from.1) * 140).clamp(-4096, 4096) as i16 as u16;
-            self.rot.yaw_screen(yaw);
-            self.rot.pitch_screen(pitch);
+        match self.drag_mode {
+            DragMode::Revolve => {
+                // Trackball 3D revolution: swipe left/right -> 360° yaw,
+                // swipe up/down -> 360° pitch, following your fingertip 1:1.
+                let yaw = ((to.0 - from.0) * TOUCH_REVOLVE_SCALE).clamp(-8192, 8192) as i16 as u16;
+                let pitch = ((to.1 - from.1) * TOUCH_REVOLVE_SCALE).clamp(-8192, 8192) as i16 as u16;
+                self.rot.yaw_screen(yaw);
+                self.rot.pitch_screen(pitch);
+                self.rot.orthonormalize();
+            }
+            DragMode::Roll => {
+                let cx = W / 2 + self.tilt_x / 16;
+                let cy = H / 2 + self.tilt_y / 16;
+                let dx0 = from.0 - cx;
+                let dy0 = from.1 - cy;
+                let dx1 = to.0 - cx;
+                let dy1 = to.1 - cy;
+                if dx0 * dx0 + dy0 * dy0 >= 16 * 16 && dx1 * dx1 + dy1 * dy1 >= 16 * 16 {
+                    let a0 = atan2_u16(dy0, dx0);
+                    let a1 = atan2_u16(dy1, dx1);
+                    self.rot.roll_screen(a1.wrapping_sub(a0));
+                    self.rot.orthonormalize();
+                }
+            }
+            DragMode::None => {}
         }
-        self.rot.orthonormalize();
     }
 
     fn toggle(&mut self, out: &mut Output) {
@@ -813,34 +829,45 @@ impl App for Pokeball {
         self.tilt_x += (target_tx - self.tilt_x) * dt / 140;
         self.tilt_y += (target_ty - self.tilt_y) * dt / 140;
 
-        // Touch gestures: drag rotates 360° & stays where released; tap opens/closes.
+        // Touch gestures:
+        // - Drag starting on the Pokéball (`r <= R`): 3D pitch/yaw revolution.
+        // - Drag starting outside the Pokéball (`r > R`): 360° in-plane roll.
+        // - Tap (< 10 px movement): open / close with custom Pokéball sound.
         let tx = input.touch.x as i32;
         let ty = input.touch.y as i32;
         let down = input.touch.down;
         if down && !self.prev_down {
             self.drag_start = (tx as i16, ty as i16);
             self.prev_touch = (tx as i16, ty as i16);
-            self.dragging = false;
+            self.drag_mode = DragMode::None;
         } else if down && self.prev_down {
             let mdx = tx - self.drag_start.0 as i32;
             let mdy = ty - self.drag_start.1 as i32;
-            if !self.dragging && mdx * mdx + mdy * mdy >= DRAG_THRESHOLD_SQ {
-                self.dragging = true;
+            if self.drag_mode == DragMode::None && mdx * mdx + mdy * mdy >= DRAG_THRESHOLD_SQ {
+                let cx = W / 2 + self.tilt_x / 16;
+                let cy = H / 2 + self.tilt_y / 16;
+                let sdx = self.drag_start.0 as i32 - cx;
+                let sdy = self.drag_start.1 as i32 - cy;
+                self.drag_mode = if sdx * sdx + sdy * sdy <= R2_MAX {
+                    DragMode::Revolve
+                } else {
+                    DragMode::Roll
+                };
                 self.wobble = 0;
                 self.wobble_vel = 0;
                 let start = (self.drag_start.0 as i32, self.drag_start.1 as i32);
                 self.apply_drag_delta(start, (tx, ty));
                 self.prev_touch = (tx as i16, ty as i16);
-            } else if self.dragging {
+            } else if self.drag_mode != DragMode::None {
                 let prev = (self.prev_touch.0 as i32, self.prev_touch.1 as i32);
                 self.apply_drag_delta(prev, (tx, ty));
                 self.prev_touch = (tx as i16, ty as i16);
             }
         } else if !down && self.prev_down {
-            if !self.dragging {
+            if self.drag_mode == DragMode::None {
                 self.toggle(out);
             }
-            self.dragging = false;
+            self.drag_mode = DragMode::None;
         } else if !down && input.touch.tapped {
             self.toggle(out);
         }
@@ -871,7 +898,7 @@ impl App for Pokeball {
             }
         }
 
-        if !self.dragging {
+        if self.drag_mode == DragMode::None {
             let gx = raw_x - self.bias_x / 16;
             let gy = raw_y - self.bias_y / 16;
             let gz = raw_z - self.bias_z / 16;
@@ -1366,18 +1393,18 @@ mod tests {
 
     #[test]
     fn drag_rotates_360_and_persists_orientation() {
+        // 1. Outer-ring drag (`r > R`) rolls 180° clockwise in-plane and persists.
         let mut p = Pokeball::new();
-        // Drag 180° clockwise around the center.
-        let points = [
-            (360u16, 240u16),
-            (340, 300),
-            (300, 340),
-            (240, 360),
-            (180, 340),
-            (140, 300),
-            (120, 240),
+        let ring_points = [
+            (420u16, 240u16),
+            (396, 330),
+            (330, 396),
+            (240, 420),
+            (150, 396),
+            (84, 330),
+            (60, 240),
         ];
-        for (idx, &(x, y)) in points.iter().enumerate() {
+        for (idx, &(x, y)) in ring_points.iter().enumerate() {
             let mut input = idle_input((idx as u32 + 1) * 33);
             input.touch = Touch {
                 down: true,
@@ -1390,16 +1417,60 @@ mod tests {
         }
         p.update(&idle_input(300), 33, &mut Output::default());
         assert!(!p.is_open());
-        // Down axis rotated 180° -> now pointing straight UP (0, -1024, 0).
         let down = p.down_dir();
         assert!(down.1 < -980, "expected upside-down, got {down:?}");
 
-        // Wait 60 idle frames — orientation must remain locked!
         let saved = p.rot;
         for i in 0..60 {
             p.update(&idle_input(333 + i * 33), 33, &mut Output::default());
         }
         assert_eq!(p.rot, saved);
+
+        // 2. Touch drag ON the Pokéball (`r <= R`) revolves smoothly in 3D yaw & pitch
+        //    and persists at whatever 3D angle you leave it on.
+        let mut q = Pokeball::new();
+        for (idx, x) in (180u16..=326).step_by(24).enumerate() {
+            let mut input = idle_input((idx as u32 + 1) * 33);
+            input.touch = Touch {
+                down: true,
+                x,
+                y: 240,
+                tapped: false,
+            };
+            q.update(&input, 33, &mut Output::default());
+            assert!(!q.is_open());
+        }
+        q.update(&idle_input(400), 33, &mut Output::default());
+        assert!(
+            q.front_dir().0 > 850,
+            "horizontal drag on ball should revolve front button right (+X), got {:?}",
+            q.front_dir()
+        );
+        let saved_3d = q.rot;
+        for i in 0..30 {
+            q.update(&idle_input(433 + i * 33), 33, &mut Output::default());
+        }
+        assert_eq!(q.rot, saved_3d, "3D touch revolution must persist after release");
+
+        // Vertical drag on the Pokéball revolves in 3D pitch.
+        let mut v = Pokeball::new();
+        for (idx, y) in (180u16..=326).step_by(24).enumerate() {
+            let mut input = idle_input((idx as u32 + 1) * 33);
+            input.touch = Touch {
+                down: true,
+                x: 240,
+                y,
+                tapped: false,
+            };
+            v.update(&input, 33, &mut Output::default());
+            assert!(!v.is_open());
+        }
+        v.update(&idle_input(400), 33, &mut Output::default());
+        assert!(
+            v.front_dir().1 > 850,
+            "vertical drag on ball should pitch front button down (+Y), got {:?}",
+            v.front_dir()
+        );
     }
 
     #[test]
