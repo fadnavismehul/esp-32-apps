@@ -2,7 +2,7 @@
 # firmware/ is a separate workspace that targets riscv32imac-unknown-none-elf.
 [workspace]
 resolver = "2"
-members = ["crates/app-sdk", "crates/netproto", "apps/glyphfield", "apps/sand", "apps/clock", "apps/blobs", "apps/flow", "apps/visuals", "apps/pikachu", "apps/city", "sim", "tool"]
+members = ["crates/app-sdk", "crates/netproto", "apps/glyphfield", "apps/sand", "apps/clock", "apps/blobs", "apps/flow", "apps/visuals", "apps/pikachu", "apps/city", "apps/pokeball", "sim", "tool"]
 exclude = ["firmware"]
 
 [workspace.package]

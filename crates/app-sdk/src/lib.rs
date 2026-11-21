@@ -20,6 +20,16 @@ pub struct Tilt {
     pub z_mg: i16,
 }
 
+/// Angular velocity from the IMU gyroscope, in tenths of a degree per second
+/// (deci-dps) along the screen axes: `x_dps10` pitches top/bottom, `y_dps10`
+/// yaws left/right, `z_dps10` spins clockwise in the screen plane.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Gyro {
+    pub x_dps10: i16,
+    pub y_dps10: i16,
+    pub z_dps10: i16,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Touch {
     /// A finger is on the screen right now.
@@ -33,6 +43,7 @@ pub struct Touch {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Input {
     pub tilt: Tilt,
+    pub gyro: Gyro,
     pub touch: Touch,
     /// Milliseconds since boot.
     pub time_ms: u32,
@@ -54,6 +65,10 @@ pub enum Sound {
     /// A soft rising four-note arpeggio, about two seconds long. The base
     /// uses it for reminders.
     Chime,
+    /// Pokéball opening: latch pop, rising energy sweep, and sparkle bloom.
+    PokeballOpen,
+    /// Pokéball closing: quick energy retract and mechanical latch snap.
+    PokeballClose,
 }
 
 /// What an app asks the base to do this frame, besides drawing.

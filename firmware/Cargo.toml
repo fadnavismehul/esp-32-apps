@@ -79,6 +79,7 @@ sand = { path = "../apps/sand" }
 clock = { path = "../apps/clock" }
 pikachu = { path = "../apps/pikachu" }
 city = { path = "../apps/city" }
+pokeball = { path = "../apps/pokeball" }
 static_cell      = "2.1.1"
 
 
@@ -108,4 +109,6 @@ opt-level = 3
 [profile.release.package.pikachu]
 opt-level = 3
 [profile.release.package.city]
+opt-level = 3
+[profile.release.package.pokeball]
 opt-level = 3

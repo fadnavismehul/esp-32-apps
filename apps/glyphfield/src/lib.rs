@@ -107,6 +107,7 @@ mod tests {
                 time_ms: 345,
                 local_time_s: None,
                 key: false,
+                ..Input::default()
             },
             33,
             &mut Output::default(),

@@ -1231,6 +1231,7 @@ dependencies = [
  "log",
  "netproto",
  "pikachu",
+ "pokeball",
  "sand",
  "smoltcp 0.14.0",
  "static_cell",
@@ -1662,6 +1663,13 @@ dependencies = [
  "fdeflate",
  "flate2",
  "miniz_oxide 0.8.9",
+]
+
+[[package]]
+name = "pokeball"
+version = "0.1.0"
+dependencies = [
+ "app-sdk",
 ]
 
 [[package]]
